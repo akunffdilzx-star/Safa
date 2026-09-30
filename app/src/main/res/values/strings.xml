@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">SAFA AI</string>
+    <string name="accessibility_service_description">Layanan SAFA AI untuk memindai soal di layar web/aplikasi lain dan melakukan pengisian jawaban otomatis.</string>
+</resources>
