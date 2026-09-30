@@ -21,9 +21,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
@@ -418,7 +418,7 @@ fun MemberProfileScreen(
         NeoButton(
             text = "[KELUAR DARI AKUN]",
             onClick = onLogout,
-            icon = Icons.Default.Logout,
+            icon = Icons.AutoMirrored.Filled.Logout,
             backgroundColor = CyberSurface,
             textColor = NeonPink,
             borderColor = NeonPink,

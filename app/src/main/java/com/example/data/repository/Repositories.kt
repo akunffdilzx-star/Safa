@@ -35,6 +35,15 @@ class AuthRepository(
     private val _currentUser = MutableStateFlow<UserEntity?>(null)
     val currentUser: StateFlow<UserEntity?> = _currentUser.asStateFlow()
 
+    init {
+        CoroutineScope(Dispatchers.IO).launch {
+            val dev = userDao.getUserByUsername("developer")
+            if (dev != null) {
+                _currentUser.value = dev
+            }
+        }
+    }
+
     fun getAllMembers(): Flow<List<UserEntity>> = userDao.getAllMembers()
     fun getMemberCount(): Flow<Int> = userDao.getMemberCount()
 

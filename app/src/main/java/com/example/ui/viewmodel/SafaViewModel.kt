@@ -59,12 +59,12 @@ class SafaViewModel(
     val currentMessages: StateFlow<List<ChatMessage>> = chatRepository.currentMessages
     val activeConversation: StateFlow<ChatConversation?> = chatRepository.activeConversation
 
-    // Start directly on ChatList (matching the video)
-    private val _currentScreen = MutableStateFlow<ScreenDestination>(ScreenDestination.ChatList)
+    // Start directly on Dashboard for SAFA AI tasks/homework solver
+    private val _currentScreen = MutableStateFlow<ScreenDestination>(ScreenDestination.Dashboard)
     val currentScreen: StateFlow<ScreenDestination> = _currentScreen.asStateFlow()
 
-    // Default theme is Neobrutalism from the video!
-    private val _currentTheme = MutableStateFlow(ThemeMode.NEOBRUTALISM)
+    // Default theme is Liquid Glass (SAFA AI Cyberpunk)
+    private val _currentTheme = MutableStateFlow(ThemeMode.LIQUID_GLASS)
     val currentTheme: StateFlow<ThemeMode> = _currentTheme.asStateFlow()
 
     private val _isFloatingEnabled = MutableStateFlow(true)
@@ -89,23 +89,18 @@ class SafaViewModel(
 
     fun navigateBack() {
         when (_currentScreen.value) {
-            ScreenDestination.ChatRoom -> {
-                chatRepository.closeConversation()
-                _currentScreen.value = ScreenDestination.ChatList
-            }
-            ScreenDestination.Profile,
-            ScreenDestination.Settings,
-            ScreenDestination.Dashboard -> {
-                _currentScreen.value = ScreenDestination.ChatList
-            }
             ScreenDestination.DeveloperPanel,
             ScreenDestination.MemberProfile,
             ScreenDestination.About,
-            ScreenDestination.CbtBrowser -> {
-                _currentScreen.value = ScreenDestination.Settings
+            ScreenDestination.CbtBrowser,
+            ScreenDestination.Profile,
+            ScreenDestination.Settings,
+            ScreenDestination.ChatRoom,
+            ScreenDestination.ChatList -> {
+                _currentScreen.value = ScreenDestination.Dashboard
             }
             ScreenDestination.Login,
-            ScreenDestination.ChatList -> {
+            ScreenDestination.Dashboard -> {
                 // At root
             }
         }
@@ -174,7 +169,7 @@ class SafaViewModel(
     suspend fun login(username: String, password: String): Result<Unit> {
         val res = authRepository.login(username, password)
         if (res.isSuccess) {
-            _currentScreen.value = ScreenDestination.ChatList
+            _currentScreen.value = ScreenDestination.Dashboard
         }
         return res.map { Unit }
     }

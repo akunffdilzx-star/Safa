@@ -233,7 +233,7 @@ class MainActivity : ComponentActivity() {
                             ScreenDestination.Login -> {
                                 LoginScreen(
                                     onLoginSuccess = {
-                                        viewModel.navigateTo(ScreenDestination.ChatList)
+                                        viewModel.navigateTo(ScreenDestination.Dashboard)
                                     },
                                     onOpenAbout = {
                                         viewModel.navigateTo(ScreenDestination.About)
