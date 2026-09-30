@@ -15,6 +15,7 @@ class SafaApplication : Application() {
     val database by lazy { AppDatabase.getDatabase(this, applicationScope) }
     val authRepository by lazy { AuthRepository(database.userDao(), database.executionLogDao()) }
     val questionRepository by lazy { QuestionRepository(database.questionDao(), database.executionLogDao(), authRepository) }
+    val chatRepository by lazy { com.example.data.repository.ChatRepository(applicationScope) }
 
     override fun onCreate() {
         super.onCreate()

@@ -6,9 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.ExecutionLogEntity
 import com.example.data.local.QuestionEntity
 import com.example.data.local.UserEntity
+import com.example.data.model.ChatConversation
+import com.example.data.model.ChatMessage
 import com.example.data.model.QuestionType
 import com.example.data.model.ThemeMode
+import com.example.data.model.UserRole
 import com.example.data.repository.AuthRepository
+import com.example.data.repository.ChatRepository
 import com.example.data.repository.QuestionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,17 +22,22 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 sealed class ScreenDestination {
-    object Login : ScreenDestination()
+    object ChatList : ScreenDestination()
+    object ChatRoom : ScreenDestination()
+    object Profile : ScreenDestination()
+    object Settings : ScreenDestination()
     object Dashboard : ScreenDestination()
     object DeveloperPanel : ScreenDestination()
     object MemberProfile : ScreenDestination()
     object About : ScreenDestination()
     object CbtBrowser : ScreenDestination()
+    object Login : ScreenDestination()
 }
 
 class SafaViewModel(
     private val authRepository: AuthRepository,
-    private val questionRepository: QuestionRepository
+    private val questionRepository: QuestionRepository,
+    private val chatRepository: ChatRepository
 ) : ViewModel() {
 
     val currentUser: StateFlow<UserEntity?> = authRepository.currentUser
@@ -45,10 +54,17 @@ class SafaViewModel(
     val currentStatusText: StateFlow<String> = questionRepository.currentStatusText
     val selectedModel: StateFlow<String> = questionRepository.selectedModel
 
-    private val _currentScreen = MutableStateFlow<ScreenDestination>(ScreenDestination.Login)
+    // Chat flows
+    val conversations: StateFlow<List<ChatConversation>> = chatRepository.conversations
+    val currentMessages: StateFlow<List<ChatMessage>> = chatRepository.currentMessages
+    val activeConversation: StateFlow<ChatConversation?> = chatRepository.activeConversation
+
+    // Start directly on ChatList (matching the video)
+    private val _currentScreen = MutableStateFlow<ScreenDestination>(ScreenDestination.ChatList)
     val currentScreen: StateFlow<ScreenDestination> = _currentScreen.asStateFlow()
 
-    private val _currentTheme = MutableStateFlow(ThemeMode.LIQUID_GLASS)
+    // Default theme is Neobrutalism from the video!
+    private val _currentTheme = MutableStateFlow(ThemeMode.NEOBRUTALISM)
     val currentTheme: StateFlow<ThemeMode> = _currentTheme.asStateFlow()
 
     private val _isFloatingEnabled = MutableStateFlow(true)
@@ -57,52 +73,80 @@ class SafaViewModel(
     private val _isNotificationEnabled = MutableStateFlow(true)
     val isNotificationEnabled: StateFlow<Boolean> = _isNotificationEnabled.asStateFlow()
 
+    // Privacy & Preferences from the video
+    private val _isOnlineStatusEnabled = MutableStateFlow(true)
+    val isOnlineStatusEnabled: StateFlow<Boolean> = _isOnlineStatusEnabled.asStateFlow()
+
+    private val _isReadReceiptEnabled = MutableStateFlow(true)
+    val isReadReceiptEnabled: StateFlow<Boolean> = _isReadReceiptEnabled.asStateFlow()
+
+    private val _groupAddPermission = MutableStateFlow("Perlu Izin")
+    val groupAddPermission: StateFlow<String> = _groupAddPermission.asStateFlow()
+
     fun navigateTo(screen: ScreenDestination) {
         _currentScreen.value = screen
     }
 
     fun navigateBack() {
         when (_currentScreen.value) {
+            ScreenDestination.ChatRoom -> {
+                chatRepository.closeConversation()
+                _currentScreen.value = ScreenDestination.ChatList
+            }
+            ScreenDestination.Profile,
+            ScreenDestination.Settings,
+            ScreenDestination.Dashboard -> {
+                _currentScreen.value = ScreenDestination.ChatList
+            }
             ScreenDestination.DeveloperPanel,
             ScreenDestination.MemberProfile,
             ScreenDestination.About,
             ScreenDestination.CbtBrowser -> {
-                _currentScreen.value = if (currentUser.value != null) {
-                    ScreenDestination.Dashboard
-                } else {
-                    ScreenDestination.Login
-                }
+                _currentScreen.value = ScreenDestination.Settings
             }
-            ScreenDestination.Dashboard -> {
-                // If on dashboard, back does nothing or exits
-            }
-            ScreenDestination.Login -> {
+            ScreenDestination.Login,
+            ScreenDestination.ChatList -> {
                 // At root
             }
         }
     }
 
-    suspend fun login(user: String, pass: String): Result<Unit> {
-        val res = authRepository.login(user, pass)
-        return if (res.isSuccess) {
-            _currentScreen.value = ScreenDestination.Dashboard
-            Result.success(Unit)
-        } else {
-            Result.failure(res.exceptionOrNull() ?: Exception("Login gagal"))
-        }
+    // Chat Actions
+    fun openChat(conv: ChatConversation) {
+        chatRepository.openConversation(conv)
+        _currentScreen.value = ScreenDestination.ChatRoom
     }
 
-    fun logout() {
-        authRepository.logout()
-        _currentScreen.value = ScreenDestination.Login
+    fun sendChatMessage(text: String) {
+        val apiKey = currentUser.value?.geminiApiKey
+        chatRepository.sendMessage(text, apiKey)
     }
 
-    fun cycleTheme() {
-        _currentTheme.value = when (_currentTheme.value) {
-            ThemeMode.LIQUID_GLASS -> ThemeMode.NEOBRUTALISM_DARK
-            ThemeMode.NEOBRUTALISM_DARK -> ThemeMode.MINIMALIST_OBSIDIAN
-            ThemeMode.MINIMALIST_OBSIDIAN -> ThemeMode.LIQUID_GLASS
-        }
+    fun startNewChat(name: String) {
+        chatRepository.startNewChatWith(name)
+        _currentScreen.value = ScreenDestination.ChatRoom
+    }
+
+    fun createGroup(name: String) {
+        chatRepository.createNewGroup(name)
+        _currentScreen.value = ScreenDestination.ChatRoom
+    }
+
+    // Settings actions
+    fun setTheme(theme: ThemeMode) {
+        _currentTheme.value = theme
+    }
+
+    fun toggleOnlineStatus(enabled: Boolean) {
+        _isOnlineStatusEnabled.value = enabled
+    }
+
+    fun toggleReadReceipt(enabled: Boolean) {
+        _isReadReceiptEnabled.value = enabled
+    }
+
+    fun setGroupPermission(permission: String) {
+        _groupAddPermission.value = permission
     }
 
     fun toggleFloating(enabled: Boolean) {
@@ -113,21 +157,40 @@ class SafaViewModel(
         _isNotificationEnabled.value = enabled
     }
 
+    fun cycleTheme() {
+        val allThemes = ThemeMode.values()
+        val nextIndex = (allThemes.indexOf(_currentTheme.value) + 1) % allThemes.size
+        _currentTheme.value = allThemes[nextIndex]
+    }
+
     fun selectModel(model: String) {
         questionRepository.setSelectedModel(model)
     }
 
-    suspend fun saveApiKey(key: String): Result<Unit> {
-        return authRepository.updateApiKey(key)
+    suspend fun saveApiKey(apiKey: String): Result<Unit> {
+        return authRepository.updateApiKey(apiKey)
     }
 
-    suspend fun createMember(username: String, pass: String, notes: String): Result<Long> {
-        return authRepository.createMember(username, pass, notes)
+    suspend fun login(username: String, password: String): Result<Unit> {
+        val res = authRepository.login(username, password)
+        if (res.isSuccess) {
+            _currentScreen.value = ScreenDestination.ChatList
+        }
+        return res.map { Unit }
     }
 
-    fun toggleMemberStatus(member: UserEntity) {
+    fun logout() {
+        authRepository.logout()
+        _currentScreen.value = ScreenDestination.Login
+    }
+
+    suspend fun createMember(username: String, password: String, notes: String): Result<Long> {
+        return authRepository.createMember(username, password, notes)
+    }
+
+    fun toggleMemberStatus(user: UserEntity) {
         viewModelScope.launch {
-            authRepository.toggleMemberStatus(member)
+            authRepository.toggleMemberStatus(user)
         }
     }
 
@@ -143,7 +206,7 @@ class SafaViewModel(
         }
     }
 
-    // AI Execution Calls
+    // Solver Actions
     fun executeCekAll() {
         viewModelScope.launch {
             questionRepository.executeCekAll()
@@ -189,10 +252,11 @@ class SafaViewModel(
 
 class SafaViewModelFactory(
     private val authRepository: AuthRepository,
-    private val questionRepository: QuestionRepository
+    private val questionRepository: QuestionRepository,
+    private val chatRepository: ChatRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return SafaViewModel(authRepository, questionRepository) as T
+        return SafaViewModel(authRepository, questionRepository, chatRepository) as T
     }
 }

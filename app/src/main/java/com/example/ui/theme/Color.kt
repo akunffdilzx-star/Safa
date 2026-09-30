@@ -2,7 +2,29 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Dark Cyber Base Palettes
+// Video Neobrutalism Primary Colors
+val NeoBackground = Color(0xFFFDFBF7)
+val NeoCardBg = Color(0xFFFFFFFF)
+val NeoBorder = Color(0xFF121212)
+val NeoYellow = Color(0xFFFFE169)
+val NeoPurple = Color(0xFF8B5CF6)
+val NeoPurpleLight = Color(0xFFDDD6FE)
+val NeoTeal = Color(0xFF2DD4BF)
+val NeoGreen = Color(0xFF22C55E)
+val NeoOrange = Color(0xFFF97316)
+val NeoRed = Color(0xFFEF4444)
+val NeoTextDark = Color(0xFF18181B)
+val NeoTextMuted = Color(0xFF71717A)
+
+// Six Themes Palettes
+val ThemeNeoBg = Color(0xFFFDFBF7)
+val ThemeLiquidBg = Color(0xFF0F172A)
+val ThemeMinimalBg = Color(0xFFFFFFFF)
+val ThemeDarkBg = Color(0xFF121212)
+val ThemeOceanBg = Color(0xFF0369A1)
+val ThemeSakuraBg = Color(0xFFFDF2F8)
+
+// Dark Cyber Base Palettes (Legacy & Fallback)
 val CyberBackground = Color(0xFF070A0F)
 val CyberSurface = Color(0xFF0F1522)
 val CyberSurfaceVariant = Color(0xFF162032)

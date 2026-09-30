@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -14,22 +15,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.provider.Settings
 import com.example.service.NotificationHelper
 import com.example.service.SafaFloatingOverlayService
 import com.example.ui.components.FloatingHudOverlay
 import com.example.ui.screens.AboutScreen
 import com.example.ui.screens.CbtBrowserScreen
+import com.example.ui.screens.ChatListScreen
+import com.example.ui.screens.ChatRoomScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.DeveloperPanelScreen
 import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.MemberProfileScreen
+import com.example.ui.screens.ProfileScreen
+import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.SafaTheme
 import com.example.ui.viewmodel.SafaViewModel
 import com.example.ui.viewmodel.SafaViewModelFactory
@@ -39,7 +42,7 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: SafaViewModel by viewModels {
         val app = application as SafaApplication
-        SafaViewModelFactory(app.authRepository, app.questionRepository)
+        SafaViewModelFactory(app.authRepository, app.questionRepository, app.chatRepository)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,6 +61,16 @@ class MainActivity : ComponentActivity() {
             val selectedModel by viewModel.selectedModel.collectAsStateWithLifecycle()
             val isFloatingEnabled by viewModel.isFloatingEnabled.collectAsStateWithLifecycle()
             val isNotificationEnabled by viewModel.isNotificationEnabled.collectAsStateWithLifecycle()
+
+            // Chat states
+            val conversations by viewModel.conversations.collectAsStateWithLifecycle()
+            val currentMessages by viewModel.currentMessages.collectAsStateWithLifecycle()
+            val activeConversation by viewModel.activeConversation.collectAsStateWithLifecycle()
+
+            // Privacy & Settings states
+            val isOnlineStatusEnabled by viewModel.isOnlineStatusEnabled.collectAsStateWithLifecycle()
+            val isReadReceiptEnabled by viewModel.isReadReceiptEnabled.collectAsStateWithLifecycle()
+            val groupAddPermission by viewModel.groupAddPermission.collectAsStateWithLifecycle()
 
             // Notification permission launcher for Android 13+
             val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -108,15 +121,43 @@ class MainActivity : ComponentActivity() {
                             .padding(innerPadding)
                     ) {
                         when (currentScreen) {
-                            ScreenDestination.Login -> {
-                                LoginScreen(
-                                    onLoginSuccess = {
-                                        viewModel.navigateTo(ScreenDestination.Dashboard)
-                                    },
-                                    onOpenAbout = {
-                                        viewModel.navigateTo(ScreenDestination.About)
-                                    },
-                                    onPerformLogin = { u, p -> viewModel.login(u, p) }
+                            ScreenDestination.ChatList -> {
+                                ChatListScreen(
+                                    conversations = conversations,
+                                    onOpenChat = { conv -> viewModel.openChat(conv) },
+                                    onOpenProfile = { viewModel.navigateTo(ScreenDestination.Profile) },
+                                    onStartNewChat = { name -> viewModel.startNewChat(name) },
+                                    onCreateGroup = { name -> viewModel.createGroup(name) }
+                                )
+                            }
+                            ScreenDestination.ChatRoom -> {
+                                ChatRoomScreen(
+                                    conversation = activeConversation,
+                                    messages = currentMessages,
+                                    onSendMessage = { text -> viewModel.sendChatMessage(text) },
+                                    onNavigateBack = { viewModel.navigateBack() }
+                                )
+                            }
+                            ScreenDestination.Profile -> {
+                                ProfileScreen(
+                                    onOpenSettings = { viewModel.navigateTo(ScreenDestination.Settings) },
+                                    onNavigateBack = { viewModel.navigateBack() }
+                                )
+                            }
+                            ScreenDestination.Settings -> {
+                                SettingsScreen(
+                                    currentTheme = currentTheme,
+                                    isOnlineStatusEnabled = isOnlineStatusEnabled,
+                                    isReadReceiptEnabled = isReadReceiptEnabled,
+                                    groupAddPermission = groupAddPermission,
+                                    isNotificationEnabled = isNotificationEnabled,
+                                    onSelectTheme = { viewModel.setTheme(it) },
+                                    onToggleOnlineStatus = { viewModel.toggleOnlineStatus(it) },
+                                    onToggleReadReceipt = { viewModel.toggleReadReceipt(it) },
+                                    onSetGroupPermission = { viewModel.setGroupPermission(it) },
+                                    onToggleNotification = { viewModel.toggleNotification(it) },
+                                    onOpenSolverWorkspace = { viewModel.navigateTo(ScreenDestination.Dashboard) },
+                                    onNavigateBack = { viewModel.navigateBack() }
                                 )
                             }
                             ScreenDestination.Dashboard -> {
@@ -189,10 +230,21 @@ class MainActivity : ComponentActivity() {
                                     onNavigateBack = { viewModel.navigateBack() }
                                 )
                             }
+                            ScreenDestination.Login -> {
+                                LoginScreen(
+                                    onLoginSuccess = {
+                                        viewModel.navigateTo(ScreenDestination.ChatList)
+                                    },
+                                    onOpenAbout = {
+                                        viewModel.navigateTo(ScreenDestination.About)
+                                    },
+                                    onPerformLogin = { u, p -> viewModel.login(u, p) }
+                                )
+                            }
                         }
 
-                        // Floating HUD Overlay (visible when user logged in & enabled)
-                        if (currentUser != null && currentScreen == ScreenDestination.Dashboard) {
+                        // Floating HUD Overlay (available in Dashboard)
+                        if (currentScreen == ScreenDestination.Dashboard) {
                             FloatingHudOverlay(
                                 isFloatingEnabled = isFloatingEnabled,
                                 statusText = statusText,
