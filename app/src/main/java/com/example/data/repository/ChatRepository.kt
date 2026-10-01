@@ -275,7 +275,8 @@ class ChatRepository(
         if (conv.isAi) {
             scope.launch(Dispatchers.IO) {
                 try {
-                    val key = customApiKey?.ifBlank { null } ?: BuildConfig.GEMINI_API_KEY
+                    val key = customApiKey?.ifBlank { null }
+                        ?: (if (BuildConfig.GEMINI_API_KEY != "DEFAULT_API_KEY") BuildConfig.GEMINI_API_KEY else "")
                     val prompt = "User mengirim pesan di aplikasi chat Xyzora:\n\"${text.trim()}\"\n" +
                             "Balaslah secara natural, cerdas, ramah, dan solutif. Jika ini pertanyaan ujian atau soal, berikan jawaban tepat beserta alasan singkatnya."
 

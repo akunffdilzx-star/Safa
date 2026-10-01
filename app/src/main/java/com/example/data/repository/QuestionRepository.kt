@@ -52,7 +52,7 @@ class QuestionRepository(
         val userKey = authRepository.currentUser.value?.geminiApiKey?.trim() ?: ""
         if (userKey.isNotBlank()) return userKey
         val buildKey = BuildConfig.GEMINI_API_KEY.trim()
-        if (buildKey.isNotBlank()) return buildKey
+        if (buildKey.isNotBlank() && buildKey != "DEFAULT_API_KEY") return buildKey
         return ""
     }
 
